@@ -104,17 +104,17 @@ const menuItems: MenuItem[] = [
       { title: "Payout Management", path: "/admin/payout-management" },
     ],
   },
-  {
-    title: "Admin Management",
-    icon: <Shield className="w-5 h-5" />,
-    path: "/admin/admin-management",
-    children: [
-      { title: "All Admins", path: "/admin/admin-management" },
-      { title: "Admin Wallets", path: "/admin/admin-management/wallets" },
-      { title: "Settlements", path: "/admin/admin-management/settlements" },
-      { title: "Admin Activity", path: "/admin/admin-management/activity" },
-    ],
-  },
+  // {
+  //   title: "Admin Management",
+  //   icon: <Shield className="w-5 h-5" />,
+  //   path: "/admin/admin-management",
+  //   children: [
+  //     { title: "All Admins", path: "/admin/admin-management" },
+  //     { title: "Admin Wallets", path: "/admin/admin-management/wallets" },
+  //     { title: "Settlements", path: "/admin/admin-management/settlements" },
+  //     { title: "Admin Activity", path: "/admin/admin-management/activity" },
+  //   ],
+  // },
   {
     title: "Email Templates",
     icon: <Mail className="w-5 h-5" />,
