@@ -1,0 +1,174 @@
+/* Updated: 2025-12-16T08:05:28.371Z */
+/* Updated: 2025-12-16T06:42:48.149Z */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: 'Outfit', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: #ffffff;
+  --foreground: #0a0a0f;
+  --card: #ffffff;
+  --card-foreground: #0a0a0f;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0f;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0a0a0f;
+  --muted: #f8fafc;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0a0a0f;
+  --destructive: #ef4444;
+  --border: #e2e8f0;
+  --input: #ffffff;
+  --ring: #3b82f6;
+  --chart-1: #10b981;
+  --chart-2: #ef4444;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #06b6d4;
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #0a0a0f;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0a0a0f;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #3b82f6;
+  --success: #10b981;
+  --danger: #ef4444;
+}
+
+.dark {
+  --background: #0a0a0f;
+  --foreground: #e8e8ed;
+  --card: #12121a;
+  --card-foreground: #e8e8ed;
+  --popover: #16161f;
+  --popover-foreground: #e8e8ed;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1e1e2a;
+  --secondary-foreground: #e8e8ed;
+  --muted: #1a1a24;
+  --muted-foreground: #8b8b9a;
+  --accent: #252533;
+  --accent-foreground: #e8e8ed;
+  --destructive: #ef4444;
+  --border: #2a2a3a;
+  --input: #1e1e2a;
+  --ring: #3b82f6;
+  --chart-1: #10b981;
+  --chart-2: #ef4444;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #06b6d4;
+  --sidebar: #0d0d14;
+  --sidebar-foreground: #e8e8ed;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e1e2a;
+  --sidebar-accent-foreground: #e8e8ed;
+  --sidebar-border: #2a2a3a;
+  --sidebar-ring: #3b82f6;
+  --success: #10b981;
+  --danger: #ef4444;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Outfit', system-ui, sans-serif;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+.trading-glow {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+}
+
+.price-up {
+  color: var(--success);
+}
+
+.price-down {
+  color: var(--danger);
+}
+
+/* Hide scrollbar utility class */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}
