@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connect } from '@/infrastructure/database';
 import TradingSettings from '@/infrastructure/database/models/TradingSettings';
-import { getAdminSession } from '@/domains/auth/services/auth.service';
-import mongoose from 'mongoose';
+import { getAdminSessionFromRequest } from '@/domains/auth/services/auth.service';
 
 // GET - Get current trading settings
 export async function GET(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSessionFromRequest(req);
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -47,7 +46,7 @@ export async function GET(req: NextRequest) {
 // PUT - Update trading settings
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSessionFromRequest(req);
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -100,7 +99,7 @@ export async function PUT(req: NextRequest) {
 // POST - Add/Update instrument spread
 export async function POST(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSessionFromRequest(req);
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }

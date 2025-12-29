@@ -3,12 +3,12 @@ import { connect } from '@/infrastructure/database';
 import Trade from '@/infrastructure/database/models/Trade';
 import User from '@/infrastructure/database/models/User';
 import TradingSettings from '@/infrastructure/database/models/TradingSettings';
-import { getAdminSession } from '@/domains/auth/services/auth.service';
+import { getAdminSessionFromRequest } from '@/domains/auth/services/auth.service';
 
 // GET - Fetch trade charges history
 export async function GET(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSessionFromRequest(req);
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
