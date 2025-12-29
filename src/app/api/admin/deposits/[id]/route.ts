@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getAdminSession } from '@/domains/auth/services/auth.service';
+import { getAdminSessionFromRequest } from '@/domains/auth/services/auth.service';
 import { connect } from '@/infrastructure/database';
 import Transaction from '@/infrastructure/database/models/Transaction';
 import Wallet from '@/infrastructure/database/models/Wallet';
 import User from '@/infrastructure/database/models/User';
 import AccountType from '@/infrastructure/database/models/AccountType';
+import { sendEmail, getDepositApprovedEmailTemplate, getDepositRejectedEmailTemplate } from '@/infrastructure/services/email.service';
 import mongoose from 'mongoose';
 
 // PUT - Approve or reject deposit
@@ -13,7 +14,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSessionFromRequest(request);
 
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json(
@@ -120,6 +121,28 @@ export async function PUT(
     }
 
     await transaction.save();
+
+    // Send email notification to user
+    try {
+      const user = await User.findOne({ userId: transaction.userId });
+      if (user && user.email) {
+        let emailHtml: string;
+        let subject: string;
+        
+        if (action === 'approve') {
+          emailHtml = getDepositApprovedEmailTemplate(user.name || 'User', transaction.amount, transaction.method || 'bank');
+          subject = 'Your Deposit Has Been Approved - NalmiFX';
+        } else {
+          emailHtml = getDepositRejectedEmailTemplate(user.name || 'User', transaction.amount, adminNotes || '');
+          subject = 'Your Deposit Has Been Rejected - NalmiFX';
+        }
+        
+        await sendEmail({ to: user.email, subject, html: emailHtml });
+        console.log(`[Deposit] ${action} email sent to ${user.email}`);
+      }
+    } catch (emailError) {
+      console.error('[Deposit] Failed to send email:', emailError);
+    }
 
     return NextResponse.json({
       success: true,

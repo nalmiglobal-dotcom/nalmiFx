@@ -3,6 +3,8 @@ import { getSession, getAdminSessionFromRequest } from '@/domains/auth/services/
 import { connect } from '@/infrastructure/database';
 import Transaction from '@/infrastructure/database/models/Transaction';
 import Wallet from '@/infrastructure/database/models/Wallet';
+import User from '@/infrastructure/database/models/User';
+import { sendEmail, getDepositApprovedEmailTemplate, getDepositRejectedEmailTemplate, getWithdrawalApprovedEmailTemplate, getWithdrawalRejectedEmailTemplate } from '@/infrastructure/services/email.service';
 import mongoose from 'mongoose';
 
 export async function PUT(
@@ -83,6 +85,38 @@ export async function PUT(
                 { $inc: { balance: transaction.amount } },
                 { upsert: true, new: true }
             );
+        }
+
+        // Send email notification to user
+        try {
+            const user = await User.findOne({ userId: transaction.userId });
+            if (user && user.email) {
+                let emailHtml: string;
+                let subject: string;
+                
+                if (transaction.type === 'deposit') {
+                    if (status === 'approved') {
+                        emailHtml = getDepositApprovedEmailTemplate(user.name || 'User', transaction.amount, transaction.method || 'bank');
+                        subject = 'Your Deposit Has Been Approved - NalmiFX';
+                    } else {
+                        emailHtml = getDepositRejectedEmailTemplate(user.name || 'User', transaction.amount, adminNotes || '');
+                        subject = 'Your Deposit Has Been Rejected - NalmiFX';
+                    }
+                } else {
+                    if (status === 'approved') {
+                        emailHtml = getWithdrawalApprovedEmailTemplate(user.name || 'User', transaction.amount, transaction.method || 'bank');
+                        subject = 'Your Withdrawal Has Been Approved - NalmiFX';
+                    } else {
+                        emailHtml = getWithdrawalRejectedEmailTemplate(user.name || 'User', transaction.amount, adminNotes || '');
+                        subject = 'Your Withdrawal Has Been Rejected - NalmiFX';
+                    }
+                }
+                
+                await sendEmail({ to: user.email, subject, html: emailHtml });
+                console.log(`[Funds] ${transaction.type} ${status} email sent to ${user.email}`);
+            }
+        } catch (emailError) {
+            console.error('[Funds] Failed to send email:', emailError);
         }
 
         return NextResponse.json({

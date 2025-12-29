@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { connect } from '@/infrastructure/database';
 import User from '@/infrastructure/database/models/User';
-import { getAdminSession } from '@/domains/auth/services/auth.service';
+import { getAdminSessionFromRequest } from '@/domains/auth/services/auth.service';
+import { sendEmail, getAccountSuspendedEmailTemplate, getAccountReactivatedEmailTemplate } from '@/infrastructure/services/email.service';
 import bcrypt from 'bcryptjs';
 
 export async function GET(request: Request, { params }: { params: { userId: string } }) {
   try {
     await connect();
-    const session = await getAdminSession();
+    const session = await getAdminSessionFromRequest(request);
 
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -32,7 +33,7 @@ export async function GET(request: Request, { params }: { params: { userId: stri
 export async function PUT(request: Request, { params }: { params: { userId: string } }) {
   try {
     await connect();
-    const session = await getAdminSession();
+    const session = await getAdminSessionFromRequest(request);
 
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -44,13 +45,14 @@ export async function PUT(request: Request, { params }: { params: { userId: stri
 
     // Handle specific actions
     if (action === 'ban') {
+      const reason = banReason || 'Banned by admin';
       const updatedUser = await User.findOneAndUpdate(
         { userId: parseInt(userId) },
         { 
           isBanned: true, 
           isActive: false,
           status: 'banned',
-          banReason: banReason || 'Banned by admin'
+          banReason: reason
         },
         { new: true }
       ).select('-password');
@@ -58,6 +60,21 @@ export async function PUT(request: Request, { params }: { params: { userId: stri
       if (!updatedUser) {
         return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
       }
+
+      // Send account suspended email
+      try {
+        const emailHtml = getAccountSuspendedEmailTemplate(updatedUser.name || 'User', reason);
+        await sendEmail({
+          to: updatedUser.email,
+          subject: 'Your NalmiFX Account Has Been Suspended',
+          html: emailHtml,
+        });
+        console.log(`[Admin] Suspension email sent to ${updatedUser.email}`);
+      } catch (emailError) {
+        console.error('[Admin] Failed to send suspension email:', emailError);
+        // Don't fail the ban action if email fails
+      }
+
       return NextResponse.json({ success: true, message: 'User banned successfully', user: updatedUser });
     }
     
@@ -76,6 +93,20 @@ export async function PUT(request: Request, { params }: { params: { userId: stri
       if (!updatedUser) {
         return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
       }
+
+      // Send account reactivated email
+      try {
+        const emailHtml = getAccountReactivatedEmailTemplate(updatedUser.name || 'User');
+        await sendEmail({
+          to: updatedUser.email,
+          subject: 'Your NalmiFX Account Has Been Reactivated',
+          html: emailHtml,
+        });
+        console.log(`[Admin] Reactivation email sent to ${updatedUser.email}`);
+      } catch (emailError) {
+        console.error('[Admin] Failed to send reactivation email:', emailError);
+      }
+
       return NextResponse.json({ success: true, message: 'User unbanned successfully', user: updatedUser });
     }
     
@@ -182,7 +213,7 @@ export async function PUT(request: Request, { params }: { params: { userId: stri
 export async function DELETE(request: Request, { params }: { params: { userId: string } }) {
   try {
     await connect();
-    const session = await getAdminSession();
+    const session = await getAdminSessionFromRequest(request);
 
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
