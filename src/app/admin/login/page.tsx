@@ -160,9 +160,13 @@ export default function AdminLoginPage() {
             </div>
           </div>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 flex justify-center gap-4">
             <a href="/login" className="text-white/50 text-sm hover:text-purple-400 transition-colors">
-              ← Back to User Login
+              ← User Login
+            </a>
+            <span className="text-white/30">|</span>
+            <a href="/" className="text-white/50 text-sm hover:text-purple-400 transition-colors">
+              Back to Website
             </a>
           </div>
         </div>
