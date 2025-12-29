@@ -12,7 +12,7 @@ import { Badge } from "@/shared/components/ui/badge";
 
 interface ITransaction {
   _id: string;
-  type: 'deposit' | 'withdrawal';
+  type: 'deposit' | 'withdrawal' | 'challenge_purchase' | 'challenge_payout';
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
   adminNotes?: string;
@@ -73,6 +73,21 @@ export default function WalletPage() {
     }
   }
 
+  const getTypeLabel = (type: ITransaction['type']) => {
+    switch (type) {
+      case 'deposit':
+        return 'Deposit';
+      case 'withdrawal':
+        return 'Withdrawal';
+      case 'challenge_purchase':
+        return 'Challenge Purchase';
+      case 'challenge_payout':
+        return 'Challenge Payout';
+      default:
+        return type;
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Header />
@@ -121,7 +136,7 @@ export default function WalletPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg sm:text-xl">Transaction History</CardTitle>
-                    <CardDescription className="text-sm">A record of your deposits and withdrawals.</CardDescription>
+                    <CardDescription className="text-sm">A record of your deposits, withdrawals, challenge purchases, and challenge payouts.</CardDescription>
                 </CardHeader>
                 <CardContent className="px-2 sm:px-6">
                     {loadingTransactions ? (
@@ -141,8 +156,8 @@ export default function WalletPage() {
                                 <TableBody>
                                     {transactions.map((tx) => (
                                         <TableRow key={tx._id}>
-                                            <TableCell className="capitalize font-medium text-xs sm:text-sm">{tx.type}</TableCell>
-                                            <TableCell className={`text-xs sm:text-sm ${tx.type === 'deposit' ? 'text-green-500' : 'text-red-500'}`}>
+                                            <TableCell className="font-medium text-xs sm:text-sm">{getTypeLabel(tx.type)}</TableCell>
+                                            <TableCell className={`text-xs sm:text-sm ${tx.type === 'deposit' || tx.type === 'challenge_payout' ? 'text-green-500' : 'text-red-500'}`}>
                                                 ${tx.amount.toFixed(2)}
                                             </TableCell>
                                             <TableCell>{getStatusBadge(tx.status)}</TableCell>

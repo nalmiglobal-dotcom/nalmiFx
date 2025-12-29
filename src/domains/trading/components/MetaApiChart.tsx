@@ -522,7 +522,7 @@ export function MetaApiChart({ symbol, interval, onQuickTrade }: MetaApiChartPro
   const decimals = getDecimalPlaces(symbol);
 
   return (
-    <div className="relative h-full w-full min-h-[300px]">
+    <div className="relative h-full w-full min-h-75">
       {/* Loading overlay */}
       {loading && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-sm">
@@ -571,7 +571,7 @@ export function MetaApiChart({ symbol, interval, onQuickTrade }: MetaApiChartPro
                   toast.info(`Quick Sell ${symbol} @ ${currentPrice.bid.toFixed(decimals)}`);
                 }
               }}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg shadow-lg transition-all hover:scale-105 active:scale-95 flex flex-col items-center min-w-[80px]"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg shadow-lg transition-all hover:scale-105 active:scale-95 flex flex-col items-center min-w-20"
             >
               <span className="text-xs opacity-80">SELL</span>
               <span className="font-mono text-sm">{currentPrice.bid.toFixed(decimals)}</span>
@@ -584,7 +584,7 @@ export function MetaApiChart({ symbol, interval, onQuickTrade }: MetaApiChartPro
                   toast.info(`Quick Buy ${symbol} @ ${currentPrice.ask.toFixed(decimals)}`);
                 }
               }}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-lg shadow-lg transition-all hover:scale-105 active:scale-95 flex flex-col items-center min-w-[80px]"
+              className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-lg shadow-lg transition-all hover:scale-105 active:scale-95 flex flex-col items-center min-w-20"
             >
               <span className="text-xs opacity-80">BUY</span>
               <span className="font-mono text-sm">{currentPrice.ask.toFixed(decimals)}</span>
@@ -595,11 +595,11 @@ export function MetaApiChart({ symbol, interval, onQuickTrade }: MetaApiChartPro
 
       {/* Floating Trade Cards with SL/TP info and Close Button */}
       {!loading && trades.length > 0 && (
-        <div className="absolute bottom-4 left-2 z-10 flex flex-col gap-2 max-h-[250px] overflow-y-auto">
+        <div className="absolute bottom-4 left-2 z-10 flex flex-col gap-2 max-h-62.5 overflow-y-auto">
           {trades.map((trade) => (
             <div
               key={trade._id}
-              className={`px-3 py-2 rounded-lg border shadow-lg backdrop-blur-sm min-w-[180px] ${
+              className={`px-3 py-2 rounded-lg border shadow-lg backdrop-blur-sm min-w-45 ${
                 trade.floatingPnL >= 0
                   ? 'bg-green-500/10 border-green-500/30'
                   : 'bg-red-500/10 border-red-500/30'
@@ -654,11 +654,11 @@ export function MetaApiChart({ symbol, interval, onQuickTrade }: MetaApiChartPro
 
       {/* Floating Pending Order Cards with SL/TP info and Cancel Button */}
       {!loading && pendingOrders.length > 0 && (
-        <div className="absolute bottom-4 right-2 z-10 flex flex-col gap-2 max-h-[250px] overflow-y-auto">
+        <div className="absolute bottom-4 right-2 z-10 flex flex-col gap-2 max-h-62.5 overflow-y-auto">
           {pendingOrders.map((order) => (
             <div
               key={order._id}
-              className="px-3 py-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 shadow-lg backdrop-blur-sm min-w-[180px]"
+              className="px-3 py-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 shadow-lg backdrop-blur-sm min-w-45"
             >
               <div className="flex items-center justify-between mb-1">
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${order.side === 'BUY' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>

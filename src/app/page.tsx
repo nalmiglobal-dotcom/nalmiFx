@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function RootPage() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="text-center space-y-8 p-8">
         <h1 className="text-5xl font-bold text-white tracking-tight">
           Welcome to <span className="text-emerald-400">NalmiFX</span>

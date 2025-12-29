@@ -4,6 +4,7 @@ import { connect } from '@/infrastructure/database';
 import ChallengeAccount from '@/infrastructure/database/models/ChallengeAccount';
 import Wallet from '@/infrastructure/database/models/Wallet';
 import User from '@/infrastructure/database/models/User';
+import Transaction from '@/infrastructure/database/models/Transaction';
 
 export async function PUT(req: NextRequest) {
   try {
@@ -66,6 +67,20 @@ export async function PUT(req: NextRequest) {
 
       // Mark payout as paid
       payout.status = 'paid';
+
+      try {
+        await Transaction.create({
+          userId: challenge.userId.userId,
+          type: 'challenge_payout',
+          amount: payout.amount,
+          status: 'approved',
+          method: 'wallet',
+          adminNotes: `Challenge payout credited: ${challenge.accountNumber} (Payout ID: ${payout.payoutId})`,
+          processedAt: new Date(),
+        });
+      } catch (e) {
+        console.error('Failed to create challenge payout transaction record:', e);
+      }
 
       await challenge.save();
 

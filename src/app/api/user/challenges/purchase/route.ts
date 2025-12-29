@@ -5,6 +5,7 @@ import User from '@/infrastructure/database/models/User';
 import ChallengeAccount from '@/infrastructure/database/models/ChallengeAccount';
 import ChallengeSettings from '@/infrastructure/database/models/ChallengeSettings';
 import Wallet from '@/infrastructure/database/models/Wallet';
+import Transaction from '@/infrastructure/database/models/Transaction';
 
 export async function POST(req: NextRequest) {
   try {
@@ -149,6 +150,20 @@ export async function POST(req: NextRequest) {
       lastActivityDate: new Date(),
       fundedDate: isInstantFunding ? new Date() : null,
     });
+
+    try {
+      await Transaction.create({
+        userId: session.userId,
+        type: 'challenge_purchase',
+        amount: price,
+        status: 'approved',
+        method: 'wallet',
+        adminNotes: `Challenge purchase: ${challengeTypeConfig.name} ($${accountSize.toLocaleString()}) - ${accountNumber}`,
+        processedAt: new Date(),
+      });
+    } catch (e) {
+      console.error('Failed to create challenge purchase transaction record:', e);
+    }
 
     return NextResponse.json({
       success: true,

@@ -204,7 +204,7 @@ export default function HomePage() {
           {/* Hero Section with Welcome Message */}
           <div className="relative overflow-hidden">
             {/* Gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-background" />
+            <div className="absolute inset-0 bg-linear-to-br from-primary/20 via-background to-background" />
             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
             <div className="absolute top-20 right-40 w-64 h-64 bg-primary/5 rounded-full blur-2xl" />
             
@@ -229,7 +229,7 @@ export default function HomePage() {
                       Start Trading
                     </Button>
                     <Button 
-                      className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0"
+                      className="bg-linear-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0"
                       onClick={() => router.push('/buy-challenge')}
                     >
                       <Trophy className="w-4 h-4 mr-2" />
@@ -456,7 +456,7 @@ export default function HomePage() {
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+                          <div className="absolute inset-0 bg-linear-to-t from-card to-transparent" />
                         </div>
                       )}
                       <div className="p-4">

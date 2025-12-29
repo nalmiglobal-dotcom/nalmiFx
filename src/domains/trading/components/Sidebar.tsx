@@ -105,11 +105,11 @@ export function Sidebar({ onOpenInstruments, onCloseInstruments, showInstruments
     <div className="hidden lg:flex w-16 bg-sidebar border-r border-sidebar-border flex-col items-center py-4 shrink-0">
       {/* Logo */}
       <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center mb-6">
-        <span className="text-primary-foreground font-bold text-lg">PT</span>
+        <span className="text-primary-foreground font-bold text-lg">NFX</span>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 flex flex-col items-center gap-1 w-full px-2">
+      <nav className="flex-1 flex flex-col items-center gap-1 w-full px-2"> 
         {menuItems.map((item) => {
           const active = isActive(item.path);
 

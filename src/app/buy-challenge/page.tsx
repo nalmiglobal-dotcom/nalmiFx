@@ -11,6 +11,14 @@ import { Input } from "@/shared/components/ui/input";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/components/ui/dialog";
 import { Settings2, Check, Target, Zap, Trophy, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,6 +60,24 @@ interface ChallengeSettings {
   refundPercentage: number;
 }
 
+type PurchasedChallengeSummary = {
+  challengeId: string;
+  accountNumber: string;
+  challengeTypeId: string;
+  challengeTypeName: string;
+  accountSize: number;
+  payoutOptionId: string;
+  payoutOptionName: string;
+  price: number;
+  platform: string;
+  paymentMethod: string;
+  status: string;
+  currentPhase: number;
+  totalPhases: number;
+};
+
+const HIDE_CHALLENGE_PURCHASE_POPUP_KEY = 'nfx_hide_challenge_purchase_popup';
+
 export default function BuyChallengePage() {
   const router = useRouter();
   const [settings, setSettings] = useState<ChallengeSettings | null>(null);
@@ -62,6 +88,10 @@ export default function BuyChallengePage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [purchasedSummary, setPurchasedSummary] = useState<PurchasedChallengeSummary | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -134,6 +164,30 @@ export default function BuyChallengePage() {
     return settings?.payoutOptions?.find(p => p.id === selectedPayout);
   };
 
+  const getShouldSkipPurchasePopup = (): boolean => {
+    try {
+      return window.localStorage.getItem(HIDE_CHALLENGE_PURCHASE_POPUP_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  };
+
+  const persistDontShowAgain = () => {
+    try {
+      if (dontShowAgain) {
+        window.localStorage.setItem(HIDE_CHALLENGE_PURCHASE_POPUP_KEY, 'true');
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handlePurchaseModalOk = () => {
+    persistDontShowAgain();
+    setPurchaseModalOpen(false);
+    router.push('/challenge-dashboard');
+  };
+
   const handlePurchase = async () => {
     if (!agreedToTerms) {
       toast.error('Please agree to the terms and conditions');
@@ -158,7 +212,35 @@ export default function BuyChallengePage() {
       const data = await res.json();
       if (data.success) {
         toast.success(data.message || 'Challenge purchased successfully!');
-        router.push('/challenge-dashboard');
+
+        const shouldSkipPopup = getShouldSkipPurchasePopup();
+        if (shouldSkipPopup) {
+          router.push('/challenge-dashboard');
+          return;
+        }
+
+        const payout = getSelectedPayout();
+        const challengeFromApi = data.challenge;
+
+        const summary: PurchasedChallengeSummary = {
+          challengeId: challengeFromApi?.id,
+          accountNumber: challengeFromApi?.accountNumber,
+          challengeTypeId: selectedType,
+          challengeTypeName: challengeFromApi?.challengeTypeName || getChallengeName(),
+          accountSize: selectedSize,
+          payoutOptionId: selectedPayout,
+          payoutOptionName: payout?.name || selectedPayout,
+          price: getTotalPrice(),
+          platform: 'MetaTrader 5',
+          paymentMethod: 'Wallet',
+          status: challengeFromApi?.status,
+          currentPhase: challengeFromApi?.currentPhase,
+          totalPhases: challengeFromApi?.totalPhases,
+        };
+
+        setPurchasedSummary(summary);
+        setDontShowAgain(false);
+        setPurchaseModalOpen(true);
       } else {
         toast.error(data.message || 'Failed to purchase challenge');
       }
@@ -177,6 +259,77 @@ export default function BuyChallengePage() {
       <div className="flex-1 flex overflow-hidden">
         <Sidebar onOpenInstruments={() => {}} />
         <main className="flex-1 overflow-y-auto pb-20 md:pb-6">
+          <Dialog open={purchaseModalOpen} onOpenChange={setPurchaseModalOpen}>
+            <DialogContent
+              showCloseButton={false}
+              onInteractOutside={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+            >
+              <DialogHeader>
+                <DialogTitle>Challenge Purchased</DialogTitle>
+                <DialogDescription>
+                  Your challenge account is ready. Please review the details below.
+                </DialogDescription>
+              </DialogHeader>
+
+              {purchasedSummary && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg border bg-background">
+                      <p className="text-xs text-muted-foreground">Challenge Type</p>
+                      <p className="font-semibold">{purchasedSummary.challengeTypeName}</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-background">
+                      <p className="text-xs text-muted-foreground">Account Size</p>
+                      <p className="font-semibold">${purchasedSummary.accountSize.toLocaleString()}</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-background">
+                      <p className="text-xs text-muted-foreground">Price Paid</p>
+                      <p className="font-semibold">${purchasedSummary.price.toFixed(2)}</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-background">
+                      <p className="text-xs text-muted-foreground">Payment</p>
+                      <p className="font-semibold">{purchasedSummary.paymentMethod}</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-background">
+                      <p className="text-xs text-muted-foreground">Payout Option</p>
+                      <p className="font-semibold">{purchasedSummary.payoutOptionName}</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-background">
+                      <p className="text-xs text-muted-foreground">Platform</p>
+                      <p className="font-semibold">{purchasedSummary.platform}</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-background">
+                      <p className="text-xs text-muted-foreground">Account Number</p>
+                      <p className="font-semibold">{purchasedSummary.accountNumber}</p>
+                    </div>
+                    <div className="p-3 rounded-lg border bg-background">
+                      <p className="text-xs text-muted-foreground">Status</p>
+                      <p className="font-semibold">{purchasedSummary.status}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2 pt-1">
+                    <Checkbox
+                      id="dont-show-again"
+                      checked={dontShowAgain}
+                      onCheckedChange={(checked) => setDontShowAgain(checked as boolean)}
+                    />
+                    <Label htmlFor="dont-show-again" className="text-sm leading-tight cursor-pointer">
+                      Don’t show this again
+                    </Label>
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button className="w-full sm:w-auto" onClick={handlePurchaseModalOk}>
+                  OK
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <div className="container mx-auto p-4 lg:p-6 max-w-6xl">
             <h1 className="text-2xl sm:text-3xl font-bold mb-6">New Challenge</h1>
 

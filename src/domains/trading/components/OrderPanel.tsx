@@ -220,7 +220,7 @@ export function OrderPanel({ isOpen, onClose, symbol, bid, ask, onTradeCreated, 
       />
       {/* Mobile: Full page | Desktop: Sidebar */}
       <div className={`
-        lg:fixed lg:right-0 lg:top-[52px] lg:bottom-0 lg:z-50 lg:w-[280px] lg:border-l lg:border-border
+        lg:fixed lg:right-0 lg:top-13 lg:bottom-0 lg:z-50 lg:w-70 lg:border-l lg:border-border
         w-full h-full
         bg-card flex flex-col transition-transform duration-300 ease-out overflow-hidden
         ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0 lg:hidden'}

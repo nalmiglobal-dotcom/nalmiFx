@@ -2,10 +2,10 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ITransaction extends Document {
   userId: number;
-  type: 'deposit' | 'withdrawal';
+  type: 'deposit' | 'withdrawal' | 'challenge_purchase' | 'challenge_payout';
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
-  method: 'bank' | 'upi' | 'crypto' | 'paypal';
+  method: 'bank' | 'upi' | 'crypto' | 'paypal' | 'wallet';
   paymentMethodId?: mongoose.Types.ObjectId; // Reference to PaymentMethod
   accountTypeId?: mongoose.Types.ObjectId; // Reference to AccountType (for deposit validation)
   transactionId?: string; // Transaction ID/UTR number provided by user
@@ -34,7 +34,7 @@ const TransactionSchema = new Schema<ITransaction>(
     },
     type: {
       type: String,
-      enum: ['deposit', 'withdrawal'],
+      enum: ['deposit', 'withdrawal', 'challenge_purchase', 'challenge_payout'],
       required: true,
     },
     amount: {
@@ -49,7 +49,7 @@ const TransactionSchema = new Schema<ITransaction>(
     },
     method: {
       type: String,
-      enum: ['bank', 'upi', 'crypto', 'paypal'],
+      enum: ['bank', 'upi', 'crypto', 'paypal', 'wallet'],
       required: true,
     },
     paymentMethodId: {
@@ -86,6 +86,10 @@ const TransactionSchema = new Schema<ITransaction>(
     timestamps: true,
   }
 );
+
+if (process.env.NODE_ENV !== 'production') {
+  delete (mongoose.models as any).Transaction;
+}
 
 export default mongoose.models.Transaction || mongoose.model<ITransaction>('Transaction', TransactionSchema);
 

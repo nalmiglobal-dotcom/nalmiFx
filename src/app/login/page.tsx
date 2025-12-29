@@ -638,15 +638,15 @@ function LoginPageContent() {
           {(view === 'login' || view === 'signup') && (
             <div className="mt-8">
               <div className="relative">
-                <div className="absolute inset-0 flex items-center">
+                {/* <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-sm">
+                </div> */}
+                {/* <div className="relative flex justify-center text-sm">
                   <span className="px-4 bg-background text-muted-foreground">Or {view === 'login' ? 'login' : 'register'} with</span>
-                </div>
+                </div> */}
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mt-6">
+              {/* <div className="grid grid-cols-2 gap-4 mt-6">
                 <Button 
                   type="button"
                   variant="outline" 
@@ -670,7 +670,7 @@ function LoginPageContent() {
                   </svg>
                   Apple
                 </Button>
-              </div>
+              </div> */}
             </div>
           )}
         </div>
