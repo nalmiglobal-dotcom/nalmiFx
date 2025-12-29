@@ -12,6 +12,23 @@ function getPipValue(symbol: string): number {
   return 0.0001;
 }
 
+// Cache trading settings to avoid DB calls on every price request
+let tradingSettingsCache: any = null;
+let tradingSettingsCacheTime = 0;
+const SETTINGS_CACHE_TTL = 30000; // 30 seconds cache
+
+async function getTradingSettings() {
+  const now = Date.now();
+  if (tradingSettingsCache && (now - tradingSettingsCacheTime) < SETTINGS_CACHE_TTL) {
+    return tradingSettingsCache;
+  }
+  
+  await connect();
+  tradingSettingsCache = await TradingSettings.findOne({ isActive: true }).lean();
+  tradingSettingsCacheTime = now;
+  return tradingSettingsCache;
+}
+
 // GET - Get real-time price for a single symbol from MetaAPI with spread applied
 export async function GET(request: NextRequest) {
   try {
@@ -25,8 +42,8 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Get price from cache or fetch from MetaAPI
-    const price = await priceFeed.getPriceAsync(symbol);
+    // Get price from cache (fast, no external API call)
+    const price = priceFeed.getPrice(symbol);
 
     if (!price) {
       return NextResponse.json({
@@ -35,9 +52,8 @@ export async function GET(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Get trading settings for spread
-    await connect();
-    const tradingSettings = await TradingSettings.findOne({ isActive: true }).lean();
+    // Get cached trading settings for spread
+    const tradingSettings = await getTradingSettings();
     
     // Calculate spread to apply
     let spreadPips = tradingSettings?.globalSpreadPips || 0;

@@ -134,7 +134,8 @@ export default function ChartPage() {
     };
 
     fetchPrice();
-    const interval = setInterval(fetchPrice, 1000);
+    // Fetch price every 300ms for real-time updates
+    const interval = setInterval(fetchPrice, 300);
     return () => clearInterval(interval);
   }, [selectedSymbol]);
 

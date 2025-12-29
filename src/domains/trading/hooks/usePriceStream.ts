@@ -11,11 +11,11 @@ interface PriceData {
 
 interface UsePriceStreamOptions {
   symbols: string[];
-  interval?: number; // Polling interval in ms (default 500ms)
+  interval?: number; // Polling interval in ms (default 200ms for instant updates)
   enabled?: boolean;
 }
 
-export function usePriceStream({ symbols, interval = 500, enabled = true }: UsePriceStreamOptions) {
+export function usePriceStream({ symbols, interval = 200, enabled = true }: UsePriceStreamOptions) {
   const [prices, setPrices] = useState<Record<string, PriceData>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

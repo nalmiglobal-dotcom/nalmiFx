@@ -30,35 +30,15 @@ const METAAPI_TOKEN = process.env.METAAPI_TOKEN || '';
 const METAAPI_ACCOUNT_ID = process.env.METAAPI_ACCOUNT_ID || '5fa758ec-b241-4c97-81c4-9de3a3bc1f04';
 const METAAPI_BASE_URL = 'https://mt-client-api-v1.new-york.agiliumtrade.ai';
 
-// Get real-time price from MetaAPI directly
-async function getPrice(symbol: string): Promise<{ bid: number; ask: number }> {
-  // First try to get from price feed cache
+// Get real-time price from cache only (fast, no API calls)
+function getPrice(symbol: string): { bid: number; ask: number } {
+  // Use price feed cache only - no external API calls for speed
   try {
     const price = priceFeed.getPrice(symbol);
     if (price && price.bid && price.ask) {
       return { bid: price.bid, ask: price.ask };
     }
   } catch (e) {}
-
-  // Try direct MetaAPI call
-  if (METAAPI_TOKEN && METAAPI_ACCOUNT_ID) {
-    try {
-      const url = `${METAAPI_BASE_URL}/users/current/accounts/${METAAPI_ACCOUNT_ID}/symbols/${symbol}/current-price`;
-      const res = await fetch(url, {
-        headers: {
-          'auth-token': METAAPI_TOKEN,
-          'Accept': 'application/json',
-        },
-        cache: 'no-store',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.bid && data.ask) {
-          return { bid: data.bid, ask: data.ask };
-        }
-      }
-    } catch (e) {}
-  }
   
   return fallbackPrices[symbol] || { bid: 0, ask: 0 };
 }
@@ -100,7 +80,7 @@ export async function GET(request: Request) {
     let totalCharges = 0;
 
     for (const trade of openTrades) {
-      const prices = await getPrice(trade.symbol);
+      const prices = getPrice(trade.symbol);
       const contractSize = getContractSize(trade.symbol);
       const remainingLot = trade.lot - (trade.closedLot || 0);
       
@@ -133,7 +113,7 @@ export async function GET(request: Request) {
       
       // Close all open trades
       for (const trade of openTrades) {
-        const prices = await getPrice(trade.symbol);
+        const prices = getPrice(trade.symbol);
         if (!prices.bid || !prices.ask) continue;
         
         const closePrice = trade.side === 'BUY' ? prices.bid : prices.ask;

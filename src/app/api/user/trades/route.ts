@@ -69,55 +69,23 @@ function toTickEngineSymbol(symbol: string): string {
   return mapping[symbol] || symbol;
 }
 
-// Get real-time price - tries MetaAPI first, falls back to tick-engine/cache
-async function getPrice(symbol: string): Promise<{ bid: number; ask: number; isLive: boolean } | null> {
-  // Check cache first
-  const cached = priceCache.get(symbol);
-  if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-    return { bid: cached.bid, ask: cached.ask, isLive: true };
-  }
-
-  // Try MetaAPI first
-  if (METAAPI_TOKEN && METAAPI_ACCOUNT_ID) {
-    try {
-      const url = `${METAAPI_BASE_URL}/users/current/accounts/${METAAPI_ACCOUNT_ID}/symbols/${symbol}/current-price`;
-      const res = await fetch(url, {
-        headers: { 'auth-token': METAAPI_TOKEN, 'Accept': 'application/json' },
-        cache: 'no-store',
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        if (data.bid && data.ask) {
-          priceCache.set(symbol, { bid: data.bid, ask: data.ask, timestamp: Date.now() });
-          priceFeed.updatePrice(symbol, data.bid, data.ask);
-          return { bid: data.bid, ask: data.ask, isLive: true };
-        }
-      }
-    } catch (e) {
-      console.log('[Trade] MetaAPI unavailable, trying price feed cache');
-    }
-  }
-
-  // Try price feed service cache (populated by tick-engine or other sources)
-  // priceFeed.getPrice always returns a value (uses static fallback if no live data)
+// Get real-time price - uses cached prices only for speed (no external API calls)
+function getPrice(symbol: string): { bid: number; ask: number; isLive: boolean } | null {
+  // Try price feed service cache first (fast, no API calls)
   try {
     const feedPrice = priceFeed.getPrice(symbol);
     if (feedPrice && feedPrice.bid && feedPrice.ask) {
       const cacheAge = Date.now() - feedPrice.time.getTime();
-      priceCache.set(symbol, { bid: feedPrice.bid, ask: feedPrice.ask, timestamp: Date.now() });
       return { bid: feedPrice.bid, ask: feedPrice.ask, isLive: cacheAge < 5000 };
     }
   } catch (e) {}
 
-  // Last resort: fallback prices from local map
+  // Fallback prices from local map
   const fallback = fallbackPrices[symbol];
   if (fallback && fallback.bid && fallback.ask) {
     return { bid: fallback.bid, ask: fallback.ask, isLive: false };
   }
 
-  // If symbol not in fallback, return null (rare case)
-  console.error('[Trade] No price available for', symbol);
   return null;
 }
 
@@ -165,9 +133,9 @@ export async function GET(request: Request) {
       // Continue with fallback prices
     }
 
-    // Update floating PnL with current real-time prices
-    const updatedTrades = await Promise.all(trades.map(async (trade: any) => {
-      const prices = await getPrice(trade.symbol);
+    // Update floating PnL with current real-time prices (using cached prices for speed)
+    const updatedTrades = trades.map((trade: any) => {
+      const prices = getPrice(trade.symbol);
       
       // If no prices available, use stored values but try to get from price feed
       if (!prices) {
@@ -213,7 +181,7 @@ export async function GET(request: Request) {
         currentPrice: trade.side === 'BUY' ? prices.bid : prices.ask,
         floatingPnL: parseFloat(floatingPnL.toFixed(2)),
       };
-    }));
+    });
 
     return NextResponse.json({
       success: true,

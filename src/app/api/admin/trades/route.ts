@@ -70,8 +70,8 @@ export async function GET(request: Request) {
 
     // Get user info for each trade
     const userIds = [...new Set(trades.map((t: any) => t.userId))];
-    const users = await User.find({ id: { $in: userIds } }).select('id name email').lean();
-    const userMap = new Map(users.map((u: any) => [u.id, u]));
+    const users = await User.find({ userId: { $in: userIds } }).select('userId name email').lean();
+    const userMap = new Map(users.map((u: any) => [u.userId, u]));
 
     // Calculate real-time PnL for open trades
     const tradesWithPnL = await Promise.all(trades.map(async (trade: any) => {
@@ -115,8 +115,14 @@ export async function GET(request: Request) {
       .limit(100)
       .lean();
 
+    // Get users for pending orders that might not be in trades
+    const pendingUserIds = [...new Set(pendingOrders.map((o: any) => o.userId))];
+    const allUserIds = [...new Set([...userIds, ...pendingUserIds])];
+    const allUsers = await User.find({ userId: { $in: allUserIds } }).select('userId name email').lean();
+    const allUserMap = new Map(allUsers.map((u: any) => [u.userId, u]));
+
     const pendingWithUsers = pendingOrders.map((order: any) => {
-      const user = userMap.get(order.userId);
+      const user = allUserMap.get(order.userId);
       return {
         ...order,
         user: user ? { name: user.name, email: user.email } : null,

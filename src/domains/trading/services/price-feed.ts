@@ -199,7 +199,8 @@ const priceCache: Map<string, PriceData> = new Map();
 
 // Live price cache with last update time
 let lastFetchTime = 0;
-const FETCH_INTERVAL = 5000; // 5 seconds - prevents rate limiting while keeping prices fresh
+const FETCH_INTERVAL = 1000; // 1 second - faster updates for real-time trading
+const PRIORITY_FETCH_INTERVAL = 500; // 500ms for priority symbols
 let initialFetchDone = false;
 let batchFetchInProgress = false;
 let continuousFetchRunning = false;
@@ -331,6 +332,9 @@ class PriceFeedService {
   private apiKey: string = '';
   private fetchingPrices = false;
   private tickEngineConnected = false;
+  private metaApiWsConnected = false;
+  private metaApiWs: any = null;
+  private subscribedSymbols: Set<string> = new Set();
 
   // Configure the external API
   configure(apiUrl: string, apiKey?: string) {
@@ -347,9 +351,13 @@ class PriceFeedService {
     // Try to connect to tick-engine WebSocket first (faster, no rate limits)
     this.connectToTickEngine();
     
-    // Also fetch from MetaAPI as backup
+    // Connect to MetaAPI WebSocket for real-time streaming
+    this.connectToMetaApiWebSocket();
+    
+    // Also fetch from MetaAPI REST as backup
     this.fetchLivePrices();
     this.startContinuousFetch();
+    this.startPriorityFetch();
   }
 
   // Connect to tick-engine WebSocket for real-time prices
@@ -414,6 +422,167 @@ class PriceFeedService {
     } catch (e: any) {
       console.log('[PriceFeed] Could not connect to tick-engine:', e.message);
     }
+  }
+
+  // Connect to MetaAPI WebSocket for real-time streaming prices
+  private connectToMetaApiWebSocket(): void {
+    if (typeof window !== 'undefined') return; // Skip on client side
+    if (!METAAPI_TOKEN || !METAAPI_ACCOUNT_ID) {
+      console.log('[PriceFeed] MetaAPI credentials not configured, skipping WebSocket');
+      return;
+    }
+
+    try {
+      const WebSocket = require('ws');
+      // MetaAPI streaming WebSocket endpoint
+      const wsUrl = `wss://mt-client-api-v1.new-york.agiliumtrade.ai/ws`;
+      
+      this.metaApiWs = new WebSocket(wsUrl);
+      
+      this.metaApiWs.on('open', () => {
+        console.log('[PriceFeed] Connected to MetaAPI WebSocket');
+        this.metaApiWsConnected = true;
+        
+        // Authenticate with MetaAPI
+        this.metaApiWs.send(JSON.stringify({
+          type: 'authenticate',
+          accountId: METAAPI_ACCOUNT_ID,
+          token: METAAPI_TOKEN,
+        }));
+        
+        // Subscribe to priority symbols for real-time ticks
+        const prioritySymbols = ['XAUUSD', 'EURUSD', 'GBPUSD', 'BTCUSD', 'USDJPY', 'ETHUSD', 'XAGUSD'];
+        prioritySymbols.forEach(symbol => {
+          this.subscribeToSymbol(symbol);
+        });
+      });
+      
+      this.metaApiWs.on('message', (data: any) => {
+        try {
+          const msg = JSON.parse(data.toString());
+          
+          // Handle price/tick updates from MetaAPI
+          if (msg.type === 'prices' || msg.type === 'tick' || msg.type === 'quote') {
+            const symbol = msg.symbol;
+            if (symbol && msg.bid && msg.ask) {
+              priceCache.set(symbol, {
+                symbol,
+                bid: msg.bid,
+                ask: msg.ask,
+                spread: msg.ask - msg.bid,
+                time: new Date(msg.time || msg.brokerTime || Date.now()),
+                change24h: 0,
+              });
+            }
+          }
+          
+          // Handle synchronization packet with prices
+          if (msg.type === 'synchronization' && msg.prices) {
+            for (const price of msg.prices) {
+              if (price.symbol && price.bid && price.ask) {
+                priceCache.set(price.symbol, {
+                  symbol: price.symbol,
+                  bid: price.bid,
+                  ask: price.ask,
+                  spread: price.ask - price.bid,
+                  time: new Date(price.time || Date.now()),
+                  change24h: 0,
+                });
+              }
+            }
+          }
+          
+          // Handle authenticated response
+          if (msg.type === 'authenticated') {
+            console.log('[PriceFeed] MetaAPI WebSocket authenticated');
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      });
+      
+      this.metaApiWs.on('close', () => {
+        console.log('[PriceFeed] MetaAPI WebSocket disconnected, reconnecting in 3s...');
+        this.metaApiWsConnected = false;
+        this.subscribedSymbols.clear();
+        setTimeout(() => this.connectToMetaApiWebSocket(), 3000);
+      });
+      
+      this.metaApiWs.on('error', (err: any) => {
+        console.log('[PriceFeed] MetaAPI WebSocket error:', err.message);
+      });
+    } catch (e: any) {
+      console.log('[PriceFeed] Could not connect to MetaAPI WebSocket:', e.message);
+    }
+  }
+
+  // Subscribe to a symbol for real-time updates via MetaAPI WebSocket
+  private subscribeToSymbol(symbol: string): void {
+    if (!this.metaApiWsConnected || !this.metaApiWs) return;
+    if (this.subscribedSymbols.has(symbol)) return;
+    
+    try {
+      this.metaApiWs.send(JSON.stringify({
+        type: 'subscribe',
+        accountId: METAAPI_ACCOUNT_ID,
+        symbol: symbol,
+      }));
+      this.subscribedSymbols.add(symbol);
+      console.log(`[PriceFeed] Subscribed to ${symbol} via MetaAPI WebSocket`);
+    } catch (e) {
+      // Ignore subscription errors
+    }
+  }
+
+  // Start priority symbol fetching loop (faster than continuous fetch)
+  private startPriorityFetch(): void {
+    const priorityLoop = async () => {
+      while (true) {
+        // Only fetch via REST if WebSocket is not connected
+        if (!this.metaApiWsConnected && !this.tickEngineConnected) {
+          await this.fetchPrioritySymbolsFast();
+        }
+        await new Promise(resolve => setTimeout(resolve, PRIORITY_FETCH_INTERVAL));
+      }
+    };
+    
+    priorityLoop().catch(console.error);
+  }
+
+  // Fast fetch for priority symbols only (no rate limiting check)
+  private async fetchPrioritySymbolsFast(): Promise<void> {
+    if (!METAAPI_TOKEN || !METAAPI_ACCOUNT_ID) return;
+    
+    const prioritySymbols = ['XAUUSD', 'EURUSD', 'GBPUSD', 'BTCUSD', 'USDJPY', 'ETHUSD'];
+    
+    // Fetch all in parallel for speed
+    await Promise.all(prioritySymbols.map(async (symbol) => {
+      try {
+        const url = `${METAAPI_BASE_URL}/users/current/accounts/${METAAPI_ACCOUNT_ID}/symbols/${symbol}/current-price`;
+        const res = await fetch(url, {
+          headers: {
+            'auth-token': METAAPI_TOKEN,
+            'Accept': 'application/json',
+          },
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.bid && data.ask) {
+            priceCache.set(symbol, {
+              symbol,
+              bid: data.bid,
+              ask: data.ask,
+              spread: data.ask - data.bid,
+              time: new Date(data.time || Date.now()),
+              change24h: 0,
+            });
+          }
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+    }));
   }
 
   // Start continuous background price fetching for real-time updates

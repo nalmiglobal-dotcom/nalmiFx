@@ -470,8 +470,8 @@ export default function TradesPage() {
                     <tr key={trade._id} className="border-b hover:bg-muted/50">
                       <td className="p-2">
                         <div>
-                          <p className="font-mono text-xs">{trade.userId}</p>
-                          {trade.user && <p className="text-xs text-muted-foreground">{trade.user.name}</p>}
+                          <p className="font-medium text-sm">{trade.user?.name || 'Unknown'}</p>
+                          <p className="font-mono text-xs text-muted-foreground">ID: {trade.userId}</p>
                         </div>
                       </td>
                       <td className="p-2 font-medium">{trade.symbol}</td>

@@ -87,7 +87,7 @@ export function Header() {
     fetchAccounts();
     fetchChallengeAccounts();
     
-    // Check SL/TP and Pending Orders every 5 seconds
+    // Check SL/TP and Pending Orders every 10 seconds (reduced from 5s for performance)
     const slTpInterval = setInterval(async () => {
       try {
         // Check SL/TP for open trades
@@ -109,7 +109,6 @@ export function Header() {
               toast.info(`${trade.symbol} closed by ${trade.reason}: ${pnlText}`, { duration: 5000 });
             }
           });
-          // Dispatch event to refresh orders table and chart
           window.dispatchEvent(new CustomEvent('tradeClosed'));
           window.dispatchEvent(new CustomEvent('tradeCreated'));
         }
@@ -132,26 +131,19 @@ export function Header() {
               }
             );
           });
-          // Dispatch event to refresh orders table and chart
           window.dispatchEvent(new CustomEvent('pendingOrderExecuted'));
           window.dispatchEvent(new CustomEvent('tradeCreated'));
         }
-        
-        // Refresh wallet after checking
-        fetchWallet();
       } catch (error) {
         // Silently handle error
       }
-    }, 5000);
+    }, 10000);
     
-    // Refresh data every 30 seconds
-    const interval = setInterval(() => {
-      fetchWallet();
-      fetchAccounts();
-    }, 30000);
+    // Refresh wallet every 5 seconds for live equity updates
+    const walletInterval = setInterval(fetchWallet, 5000);
     
     return () => {
-      clearInterval(interval);
+      clearInterval(walletInterval);
       clearInterval(slTpInterval);
     };
   }, []);

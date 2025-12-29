@@ -112,7 +112,8 @@ export function OrdersTable({ isExpanded, onToggle, challengeAccountId, fullHeig
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 5000);
+    // Reduced polling from 5s to 10s for performance - events handle immediate updates
+    const interval = setInterval(fetchData, 10000);
     const handleTradeEvent = () => fetchData();
     window.addEventListener('tradeCreated', handleTradeEvent);
     window.addEventListener('tradeClosed', handleTradeEvent);
