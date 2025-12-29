@@ -411,16 +411,16 @@ class PriceFeedService {
       });
       
       ws.on('close', () => {
-        console.log('[PriceFeed] Tick-engine disconnected, reconnecting in 5s...');
+        // Tick-engine is optional - silently reconnect
         this.tickEngineConnected = false;
         setTimeout(() => this.connectToTickEngine(), 5000);
       });
       
-      ws.on('error', (err: any) => {
-        console.log('[PriceFeed] Tick-engine error:', err.message);
+      ws.on('error', () => {
+        // Silently handle - will reconnect on close
       });
     } catch (e: any) {
-      console.log('[PriceFeed] Could not connect to tick-engine:', e.message);
+      // Tick-engine not available - will use REST API fallback
     }
   }
 

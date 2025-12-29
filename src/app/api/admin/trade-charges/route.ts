@@ -3,12 +3,12 @@ import { connect } from '@/infrastructure/database';
 import Trade from '@/infrastructure/database/models/Trade';
 import User from '@/infrastructure/database/models/User';
 import TradingSettings from '@/infrastructure/database/models/TradingSettings';
-import { getSession } from '@/domains/auth/services/auth.service';
+import { getAdminSession } from '@/domains/auth/services/auth.service';
 
 // GET - Fetch trade charges history
 export async function GET(req: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAdminSession();
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
 
     // Get user info for each trade
     const userIds = [...new Set(trades.map((t: any) => t.userId))];
-    const users = await User.find({ id: { $in: userIds } }).select('id name email').lean();
-    const userMap = new Map(users.map((u: any) => [u.id, u]));
+    const users = await User.find({ userId: { $in: userIds } }).select('userId name email').lean();
+    const userMap = new Map(users.map((u: any) => [u.userId, u]));
 
     // Enrich trades with user info
     const tradesWithUsers = trades.map((trade: any) => {

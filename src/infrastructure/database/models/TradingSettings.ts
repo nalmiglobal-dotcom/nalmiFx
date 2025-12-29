@@ -50,7 +50,7 @@ export interface ITradingSettings extends Document {
   
   // Settings
   isActive: boolean;
-  updatedBy: mongoose.Types.ObjectId;
+  updatedBy?: number;
   updatedAt: Date;
   createdAt: Date;
 }
@@ -118,7 +118,7 @@ const TradingSettingsSchema = new Schema<ITradingSettings>({
   
   // Meta
   isActive: { type: Boolean, default: true },
-  updatedBy: { type: Schema.Types.ObjectId, ref: 'AdminUser' },
+  updatedBy: { type: Number },
 }, {
   timestamps: true,
 });
@@ -126,6 +126,11 @@ const TradingSettingsSchema = new Schema<ITradingSettings>({
 // Ensure only one active settings document
 TradingSettingsSchema.index({ isActive: 1 }, { unique: true, partialFilterExpression: { isActive: true } });
 
-const TradingSettings: Model<ITradingSettings> = mongoose.models.TradingSettings || mongoose.model<ITradingSettings>('TradingSettings', TradingSettingsSchema);
+// Delete cached model to ensure schema changes take effect
+if (mongoose.models.TradingSettings) {
+  delete mongoose.models.TradingSettings;
+}
+
+const TradingSettings: Model<ITradingSettings> = mongoose.model<ITradingSettings>('TradingSettings', TradingSettingsSchema);
 
 export default TradingSettings;

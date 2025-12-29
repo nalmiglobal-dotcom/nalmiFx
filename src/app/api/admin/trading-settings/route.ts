@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connect } from '@/infrastructure/database';
 import TradingSettings from '@/infrastructure/database/models/TradingSettings';
-import { getSession } from '@/domains/auth/services/auth.service';
+import { getAdminSession } from '@/domains/auth/services/auth.service';
 import mongoose from 'mongoose';
 
 // GET - Get current trading settings
 export async function GET(req: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAdminSession();
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -33,7 +33,6 @@ export async function GET(req: NextRequest) {
           { symbol: 'ETHUSD', spreadPips: 50, enabled: true },
         ],
         isActive: true,
-        updatedBy: new mongoose.Types.ObjectId(session.userId as string),
       });
       await settings.save();
     }
@@ -48,7 +47,7 @@ export async function GET(req: NextRequest) {
 // PUT - Update trading settings
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAdminSession();
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -89,7 +88,6 @@ export async function PUT(req: NextRequest) {
       settings.segmentCharges = segmentCharges;
     }
 
-    settings.updatedBy = new mongoose.Types.ObjectId(session.userId as string);
     await settings.save();
 
     return NextResponse.json({ success: true, settings });
@@ -102,7 +100,7 @@ export async function PUT(req: NextRequest) {
 // POST - Add/Update instrument spread
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAdminSession();
     if (!session || (session.scope !== 'admin' && session.scope !== 'tradeMaster')) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -129,7 +127,6 @@ export async function POST(req: NextRequest) {
       settings.instrumentSpreads.push({ symbol, spreadPips, enabled });
     }
 
-    settings.updatedBy = new mongoose.Types.ObjectId(session.userId as string);
     await settings.save();
 
     return NextResponse.json({ success: true, settings });
