@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
     <div className="flex min-h-screen bg-[#0f0a1f]">
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/40 via-[#1a1025] to-[#0f0a1f]" />
+        <div className="absolute inset-0 bg-linear-to-br from-purple-900/40 via-[#1a1025] to-[#0f0a1f]" />
         <div 
           className="absolute inset-0 opacity-60"
           style={{
@@ -69,9 +69,9 @@ export default function AdminLoginPage() {
           
           <div className="flex-1 flex items-center justify-center">
             <div className="relative w-full max-w-md aspect-square">
-              <div className="absolute inset-0 bg-gradient-to-t from-purple-600/20 via-transparent to-transparent rounded-3xl" />
+              <div className="absolute inset-0 bg-linear-to-t from-purple-600/20 via-transparent to-transparent rounded-3xl" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-48 h-48 bg-gradient-to-br from-purple-500/30 to-indigo-600/20 rounded-full blur-3xl" />
+                <div className="w-48 h-48 bg-linear-to-br from-purple-500/30 to-indigo-600/20 rounded-full blur-3xl" />
               </div>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="p-8 rounded-full bg-purple-600/20 border border-purple-500/30">

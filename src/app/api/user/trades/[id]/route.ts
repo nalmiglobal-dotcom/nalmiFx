@@ -181,31 +181,9 @@ export async function PUT(
 
     // Update balance: return margin + apply P&L
     if (challengeAccount) {
-      // Challenge account trade
-      const maxAllowableLoss = challengeAccount.currentBalance + marginToReturn;
-      let cappedPnL = realizedPnL;
-      if (realizedPnL < 0 && Math.abs(realizedPnL) > maxAllowableLoss) {
-        cappedPnL = -maxAllowableLoss;
-      }
-      
-      challengeAccount.currentBalance += marginToReturn + cappedPnL;
-      challengeAccount.realizedPnL = (challengeAccount.realizedPnL || 0) + cappedPnL;
-      challengeAccount.tradesCount = (challengeAccount.tradesCount || 0) + 1;
-      
-      if (cappedPnL >= 0) {
-        challengeAccount.winningTrades = (challengeAccount.winningTrades || 0) + 1;
-      } else {
-        challengeAccount.losingTrades = (challengeAccount.losingTrades || 0) + 1;
-      }
-      
-      // Calculate profit percent
-      const totalProfit = challengeAccount.currentBalance - challengeAccount.initialBalance;
-      challengeAccount.totalProfitPercent = (totalProfit / challengeAccount.initialBalance) * 100;
-      
-      // Update win rate
-      const totalTrades = challengeAccount.winningTrades + challengeAccount.losingTrades;
-      challengeAccount.winRate = totalTrades > 0 ? (challengeAccount.winningTrades / totalTrades) * 100 : 0;
-      
+      // Challenge account trade - only return margin here
+      // The trade-update API will handle P&L, breach detection, and phase progression
+      challengeAccount.currentBalance += marginToReturn;
       challengeAccount.lastActivityDate = new Date();
       
       // Safety check
@@ -215,18 +193,38 @@ export async function PUT(
       
       await challengeAccount.save();
       
-      // Trigger challenge trade update for phase progression/breach detection
+      // Trigger challenge trade update for P&L, phase progression, and breach detection
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/user/challenges/trade-update`, {
+        const tradeUpdateResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/user/challenges/trade-update`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cookie': request.headers.get('cookie') || '',
+          },
           body: JSON.stringify({
-            challengeAccountId: challengeAccount._id.toString(),
-            tradeId: trade._id.toString(),
-            profit: cappedPnL,
-            profitPercent: (cappedPnL / challengeAccount.initialBalance) * 100,
+            challengeId: challengeAccount._id.toString(),
+            trade: {
+              _id: trade._id.toString(),
+              symbol: trade.symbol,
+              type: 'market',
+              side: trade.side.toLowerCase(),
+              lots: lotToClose,
+              openPrice: trade.entryPrice,
+              closePrice: closePrice,
+              profit: realizedPnL,
+              openedAt: trade.createdAt,
+              closedAt: new Date(),
+            },
           }),
         });
+        
+        const updateResult = await tradeUpdateResponse.json();
+        console.log('[Trade Close] Challenge update result:', updateResult);
+        
+        // If challenge was breached, log it
+        if (updateResult.breached) {
+          console.log(`[Trade Close] Challenge BREACHED: ${updateResult.message}`);
+        }
       } catch (e) {
         console.error('Failed to trigger challenge trade update:', e);
       }

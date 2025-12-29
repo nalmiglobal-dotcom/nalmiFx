@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connect } from '@/infrastructure/database';
 import Trade from '@/infrastructure/database/models/Trade';
 import Wallet from '@/infrastructure/database/models/Wallet';
+import ChallengeAccount from '@/infrastructure/database/models/ChallengeAccount';
 import { shouldTriggerSLTP, calculateRealizedPnL, getContractSize } from '@/domains/trading/services/calculations';
 import { priceFeed } from '@/domains/trading/services/price-feed';
 
@@ -76,6 +77,93 @@ async function getPrice(symbol: string): Promise<{ bid: number; ask: number } | 
 
 // Margin call threshold - close all trades when margin level falls below this
 const STOP_OUT_LEVEL = 50; // 50% margin level triggers stop out
+
+// Helper to close a CHALLENGE trade and trigger breach detection
+async function closeChallengeTradeWithProtection(
+  trade: any,
+  closePrice: number,
+  reason: string,
+  challengeAccount: any
+): Promise<{ success: boolean; realizedPnL: number; breached: boolean }> {
+  const remainingLot = trade.lot - (trade.closedLot || 0);
+  const contractSize = getContractSize(trade.symbol);
+  
+  const realizedPnL = calculateRealizedPnL(
+    trade.side,
+    trade.entryPrice,
+    closePrice,
+    remainingLot,
+    contractSize
+  );
+
+  const marginToReturn = trade.margin || 0;
+  
+  // Return margin to challenge account
+  challengeAccount.currentBalance += marginToReturn;
+  challengeAccount.lastActivityDate = new Date();
+  
+  // Safety check
+  if (challengeAccount.currentBalance < 0) {
+    challengeAccount.currentBalance = 0;
+  }
+  
+  await challengeAccount.save();
+
+  // Determine trading session
+  const closeTime = new Date();
+  const hour = closeTime.getUTCHours();
+  let session: 'New York' | 'London' | 'Tokyo' | 'Sydney' | 'Other' = 'Other';
+  if (hour >= 8 && hour < 16) session = 'London';
+  else if (hour >= 13 && hour < 21) session = 'New York';
+  else if (hour >= 0 && hour < 8) session = 'Tokyo';
+  else if (hour >= 21 || hour < 2) session = 'Sydney';
+
+  // Close trade
+  await Trade.findByIdAndUpdate(trade._id, {
+    status: 'closed',
+    closePrice,
+    closedLot: trade.lot,
+    realizedPnL: (trade.realizedPnL || 0) + realizedPnL,
+    closedAt: closeTime,
+    session,
+  });
+
+  // Trigger challenge trade update for P&L, phase progression, and breach detection
+  let breached = false;
+  try {
+    const tradeUpdateResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/user/challenges/trade-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        challengeId: challengeAccount._id.toString(),
+        trade: {
+          _id: trade._id.toString(),
+          symbol: trade.symbol,
+          type: 'market',
+          side: trade.side.toLowerCase(),
+          lots: remainingLot,
+          openPrice: trade.entryPrice,
+          closePrice: closePrice,
+          profit: realizedPnL,
+          openedAt: trade.createdAt,
+          closedAt: closeTime,
+        },
+      }),
+    });
+    
+    const updateResult = await tradeUpdateResponse.json();
+    console.log(`[SL/TP Check] Challenge trade update (${reason}):`, updateResult);
+    
+    if (updateResult.breached) {
+      breached = true;
+      console.log(`[SL/TP Check] Challenge BREACHED: ${updateResult.message}`);
+    }
+  } catch (e) {
+    console.error('[SL/TP Check] Failed to trigger challenge trade update:', e);
+  }
+
+  return { success: true, realizedPnL, breached };
+}
 
 // Helper to close a trade and update wallet - ENSURES WALLET NEVER GOES NEGATIVE
 async function closeTradeWithProtection(
@@ -240,6 +328,7 @@ export async function POST(request: Request) {
 
     // ===== STEP 2: CHECK SL/TP FOR REMAINING OPEN TRADES =====
     const openTrades = await Trade.find({ status: 'open' }).lean();
+    const challengeBreaches: any[] = [];
 
     for (const trade of openTrades) {
       const prices = await getPrice(trade.symbol);
@@ -254,39 +343,73 @@ export async function POST(request: Request) {
       );
 
       if (checkResult.triggered) {
-        const wallet = await Wallet.findOne({ userId: trade.userId });
-        if (!wallet) continue;
+        // Check if this is a challenge account trade
+        if (trade.challengeAccountId) {
+          const challengeAccount = await ChallengeAccount.findById(trade.challengeAccountId);
+          if (!challengeAccount || !['evaluation', 'funded'].includes(challengeAccount.status)) {
+            continue; // Skip if challenge not active
+          }
 
-        const result = await closeTradeWithProtection(
-          trade,
-          checkResult.closePrice,
-          checkResult.reason || 'SL_TP',
-          wallet
-        );
+          const result = await closeChallengeTradeWithProtection(
+            trade,
+            checkResult.closePrice,
+            checkResult.reason || 'SL_TP',
+            challengeAccount
+          );
 
-        // Recalculate wallet after this trade closes
-        const remainingOpenTrades = await Trade.find({ 
-          userId: trade.userId, 
-          status: 'open',
-          _id: { $ne: trade._id }
-        }).lean();
-        
-        const totalMarginUsed = remainingOpenTrades.reduce((sum: number, t: any) => sum + (t.margin || 0), 0);
-        const floatingPnL = remainingOpenTrades.reduce((sum: number, t: any) => sum + (t.floatingPnL || 0), 0);
-        
-        wallet.equity = wallet.balance + floatingPnL;
-        wallet.margin = totalMarginUsed;
-        wallet.freeMargin = wallet.equity - totalMarginUsed;
-        wallet.marginLevel = totalMarginUsed > 0 ? (wallet.equity / totalMarginUsed) * 100 : 0;
-        await wallet.save();
+          closedTrades.push({
+            tradeId: trade._id,
+            symbol: trade.symbol,
+            reason: checkResult.reason,
+            realizedPnL: parseFloat(result.realizedPnL.toFixed(2)),
+            closePrice: checkResult.closePrice,
+            challengeAccountId: trade.challengeAccountId,
+            breached: result.breached,
+          });
 
-        closedTrades.push({
-          tradeId: trade._id,
-          symbol: trade.symbol,
-          reason: checkResult.reason,
-          realizedPnL: parseFloat(result.realizedPnL.toFixed(2)),
-          closePrice: checkResult.closePrice,
-        });
+          if (result.breached) {
+            challengeBreaches.push({
+              challengeAccountId: trade.challengeAccountId,
+              tradeId: trade._id,
+            });
+          }
+        } else {
+          // Regular wallet trade
+          const wallet = await Wallet.findOne({ userId: trade.userId });
+          if (!wallet) continue;
+
+          const result = await closeTradeWithProtection(
+            trade,
+            checkResult.closePrice,
+            checkResult.reason || 'SL_TP',
+            wallet
+          );
+
+          // Recalculate wallet after this trade closes
+          const remainingOpenTrades = await Trade.find({ 
+            userId: trade.userId, 
+            status: 'open',
+            challengeAccountId: { $exists: false },
+            _id: { $ne: trade._id }
+          }).lean();
+          
+          const totalMarginUsed = remainingOpenTrades.reduce((sum: number, t: any) => sum + (t.margin || 0), 0);
+          const floatingPnL = remainingOpenTrades.reduce((sum: number, t: any) => sum + (t.floatingPnL || 0), 0);
+          
+          wallet.equity = wallet.balance + floatingPnL;
+          wallet.margin = totalMarginUsed;
+          wallet.freeMargin = wallet.equity - totalMarginUsed;
+          wallet.marginLevel = totalMarginUsed > 0 ? (wallet.equity / totalMarginUsed) * 100 : 0;
+          await wallet.save();
+
+          closedTrades.push({
+            tradeId: trade._id,
+            symbol: trade.symbol,
+            reason: checkResult.reason,
+            realizedPnL: parseFloat(result.realizedPnL.toFixed(2)),
+            closePrice: checkResult.closePrice,
+          });
+        }
       }
     }
 
@@ -296,8 +419,9 @@ export async function POST(request: Request) {
       success: true,
       closedTrades: allClosedTrades,
       marginCalls: marginCallTrades.length,
+      challengeBreaches: challengeBreaches.length,
       message: allClosedTrades.length > 0 
-        ? `${allClosedTrades.length} trade(s) closed (${marginCallTrades.length} margin calls)`
+        ? `${allClosedTrades.length} trade(s) closed (${marginCallTrades.length} margin calls, ${challengeBreaches.length} challenge breaches)`
         : 'No trades triggered',
     });
   } catch (error: any) {
